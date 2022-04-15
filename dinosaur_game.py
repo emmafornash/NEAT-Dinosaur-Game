@@ -29,7 +29,7 @@ class Dinosaur:
 
 class Cactus:
     # make velocity global in some way. DO NOT USE GLOBAL
-    VEL = 5
+    VEL = 7
 
     def __init__(self, x) -> None:
         self.x = x
@@ -52,8 +52,41 @@ class SmallCactus(Cactus):
 
         self.passed = False
 
+class Bird:
+    IMGS = BIRD_IMGS
+    VEL = 7 + random.randrange(-2, 2)
+    ANIMATION_TIME = 10
+
+    def __init__(self, x) -> None:
+        self.x = x
+        self.y = random.choice([WIN_HEIGHT - BASE_IMG.get_height() - BIRD_IMGS[0].get_height(),
+                                WIN_HEIGHT - BASE_IMG.get_height() - BIRD_IMGS[0].get_height()*2,
+                                WIN_HEIGHT - BASE_IMG.get_height() - BIRD_IMGS[0].get_height()*3])
+
+        self.img_count = 0
+        self.img = self.IMGS[self.img_count]
+
+        self.passed = False
+
+    def move(self) -> None:
+        self.x -= self.VEL
+
+    def draw(self, win) -> None:
+        self.img_count += 1
+
+        # this is inefficient, come back later
+        if self.img_count < self.ANIMATION_TIME:
+            self.img = self.IMGS[0]
+        elif self.img_count < self.ANIMATION_TIME*2:
+            self.img = self.IMGS[1]
+        else:
+            self.img_count = 0
+
+        win.blit(self.img, (self.x, self.y))
+
+
 class Base:
-    VEL = 5
+    VEL = 7
     WIDTH = BASE_IMG.get_width()
     IMG = BASE_IMG
 
@@ -76,24 +109,24 @@ class Base:
         win.blit(self.IMG, (self.x1, self.y))
         win.blit(self.IMG, (self.x2, self.y))
 
-def draw_window(win, base, obsticles) -> None:
+def draw_window(win, base, obstacles) -> None:
     win.fill((0,0,0))
     base.draw(win)
 
-    for o in obsticles:
+    for o in obstacles:
         o.draw(win)
 
     pygame.display.update()
 
 def main() -> None:
     base = Base(WIN_HEIGHT - BASE_IMG.get_height())
-    obsticles = [Cactus(1200)]
+    obstacles = [Cactus(1200)]
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), vsync=1)
     clock = pygame.time.Clock()
 
     run = True
     while run:
-        print(obsticles)
+        print(obstacles)
         clock.tick(60)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -103,7 +136,7 @@ def main() -> None:
 
         add_ob = False
         rem = []
-        for o in obsticles:
+        for o in obstacles:
             if o.x < WIN_WIDTH / 2 and not o.passed:
                 o.passed = True
                 add_ob = True
@@ -114,13 +147,14 @@ def main() -> None:
             o.move()
 
         if add_ob:
-            options = [Cactus(1200), SmallCactus(1200)]
-            obsticles.append(random.choice(options))
+            options = [Cactus(1200), SmallCactus(1200), Bird(1200)]
+            # options = [Bird(1200)]
+            obstacles.append(random.choice(options))
 
         for r in rem:
-            obsticles.remove(r)
+            obstacles.remove(r)
 
         base.move()
-        draw_window(win, base, obsticles)
+        draw_window(win, base, obstacles)
 
 main()
