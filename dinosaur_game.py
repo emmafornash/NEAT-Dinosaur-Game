@@ -19,6 +19,8 @@ BIRD_IMGS = [(pygame.image.load(os.path.join("imgs", "bird", "bird1.png"))),
 CLOUD_IMG = (pygame.image.load(os.path.join("imgs", "misc", "cloud.png")))
 BASE_IMG = (pygame.image.load(os.path.join("imgs", "misc", "base.png")))
 
+STAT_FONT = pygame.font.SysFont("sans-serif", 50)
+
 class Dinosaur:
     STANDING_IMGS = DINOSAUR_STANDING_IMGS
     DOWN_IMGS = DINOSAUR_DOWN_IMGS
@@ -95,12 +97,13 @@ class Dinosaur:
 
 class Cactus:
     # TODO: make velocity global in some way. DO NOT USE GLOBAL
-    VEL = 7
+    VEL = 8
 
     def __init__(self, x) -> None:
         self.x = x
         self.img = BIG_CACTUS_IMGS[random.randrange(0, 3)]
         self.height = WIN_HEIGHT - self.img.get_height()
+        self.y = self.height
 
         self.send_next = False
         self.passed = False
@@ -110,6 +113,14 @@ class Cactus:
 
     def draw(self, win) -> None:
         win.blit(self.img, (self.x, self.height))
+
+    def collide(self, dino) -> bool:
+        dino_mask = dino.get_mask()
+        cactus_mask = pygame.mask.from_surface(self.img)
+
+        collision_point = dino_mask.overlap(cactus_mask, (0,0))
+
+        return collision_point
 
 class SmallCactus(Cactus):
     def __init__(self, x) -> None:
@@ -124,7 +135,7 @@ class Bird:
     IMGS = BIRD_IMGS
     # NOTE: maybe set this to a custom distribution, i.e. the mean is still 7,
     # but the range can so significantly more negative
-    VEL = 7 + random.randrange(-2, 2)
+    VEL = 8 + random.randrange(-2, 2)
     ANIMATION_TIME = 10
 
     def __init__(self, x) -> None:
@@ -158,8 +169,16 @@ class Bird:
 
         win.blit(self.img, (self.x, self.y))
 
+    def collide(self, dino) -> bool:
+        dino_mask = dino.get_mask()
+        bird_mask = pygame.mask.from_surface(self.img)
+
+        collision_point = dino_mask.overlap(bird_mask, (0,0))
+
+        return collision_point
+
 class Base:
-    VEL = 7
+    VEL = 8
     WIDTH = BASE_IMG.get_width()
     IMG = BASE_IMG
 
@@ -203,7 +222,7 @@ class Cloud:
     def draw(self, win) -> None:
         win.blit(self.IMG, (self.x, self.y))
 
-def draw_window(win, dino, base, obstacles, clouds) -> None:
+def draw_window(win, dino, base, obstacles, clouds, score) -> None:
     win.fill((0,0,0))
 
     for c in clouds:
@@ -214,20 +233,35 @@ def draw_window(win, dino, base, obstacles, clouds) -> None:
     for o in obstacles:
         o.draw(win)
 
+    text = STAT_FONT.render("Score: " + str(score), 1, (255, 255, 255))
+    win.blit(text, (WIN_WIDTH - 10 - text.get_width(), 10))
+
     dino.draw(win)
 
     pygame.display.update()
 
-def main() -> None:
-    dino = Dinosaur(11, 10)
+def main(genomes, config) -> None:
+    nets = []
+    ge = []
+    dinos = []
+
+    for _, g in genomes:
+        net = neat.nn.FeedForwardNetwork.create(g, config)
+        nets.append(net)
+        dinos.append(Dinosaur(11, 10))
+        g.fitness = 0
+        ge.append(g)
+
     base = Base(WIN_HEIGHT - BASE_IMG.get_height())
     obstacles = [Cactus(1200)]
     clouds = [Cloud(1300)]
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), vsync=1)
     clock = pygame.time.Clock()
 
+    score = 0
     run = True
     while run:
+        score += 1
         clock.tick(60)
         for event in pygame.event.get():
             # debug controls
@@ -241,13 +275,43 @@ def main() -> None:
                 pygame.quit()
                 quit()
 
-        dino.move()
+        obs_ind = 0
+        if len(dinos) > 0:
+            if len(obstacles) > 1 and dinos[0].x > obstacles[0].x:
+                obs_ind = 1
+        else:
+            run = False
+            break
+
+        for x, dino in enumerate(dinos):
+            ge[x].fitness += 0.1
+            output = nets[x].activate((dino.y, abs(dino.x - obstacles[obs_ind].x), abs(dino.y - obstacles[obs_ind].y)))
+
+            if output[0] > 0.5:
+                dino.jumping = True
+            if output[1] > 0.5:
+                dino.ducking = True
+
+            dino.move()
+
         add_ob = False
+        give_score = False
         rem = []
         for o in obstacles:
-            if o.x < WIN_WIDTH / 2 and not o.send_next:
-                o.send_next = True
-                add_ob = True
+            for x, dino in enumerate(dinos):
+                if o.collide(dino):
+                    ge[x].fitness -= 3
+                    dinos.pop(x)
+                    nets.pop(x)
+                    ge.pop(x)
+
+                if o.x < WIN_WIDTH / 2 and not o.send_next:
+                    o.send_next = True
+                    add_ob = True
+
+                if o.x < dino.x and not o.passed:
+                    o.passed = True
+                    give_score = True
 
             if o.x < 0 - o.img.get_width():
                 rem.append(o)
@@ -261,6 +325,10 @@ def main() -> None:
 
         for r in rem:
             obstacles.remove(r)
+
+        if give_score:
+            for g in ge:
+                g.fitness += 5
 
         add_cloud = False
         cloud_rem = []
@@ -281,6 +349,20 @@ def main() -> None:
             clouds.remove(c)
 
         base.move()
-        draw_window(win, dino, base, obstacles, clouds)
+        draw_window(win, dino, base, obstacles, clouds, score)
 
-main()
+def run(config_path):
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                                neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                                config_path)
+
+    population = neat.Population(config)
+    population.add_reporter(neat.StdOutReporter(True))
+    population.add_reporter(neat.StatisticsReporter())
+
+    winner = population.run(main,50)
+
+if __name__ == '__main__':
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, "config-feedforward.txt")
+    run(config_path)
