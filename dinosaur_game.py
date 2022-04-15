@@ -1,4 +1,4 @@
-import pygame, neat, time, os, random
+import pygame, neat, time, os, random, math
 pygame.font.init()
 
 WIN_WIDTH = 1200
@@ -23,6 +23,7 @@ class Dinosaur:
     STANDING_IMGS = DINOSAUR_STANDING_IMGS
     DOWN_IMGS = DINOSAUR_DOWN_IMGS
     ANIMATION_TIME = 10
+    GRAVITY = 0.7
 
     def __init__(self, x, y) -> None:
         self.x = x
@@ -36,21 +37,8 @@ class Dinosaur:
         self.img_count = 0
         self.img = self.img_set[self.img_count]
 
+        self.jumping = False
         self.ducking = False
-
-    def jump(self) -> None:
-        self.vel = -10.5
-        self.tick_count = 0
-        self.height = self.y
-
-    # NOTE: these seem inefficient. just pass a boolean to the move function
-    # def duck(self) -> None:
-    #     self.vel_modifier = 2
-    #     self.img_set = DOWN_IMGS
-    #
-    # def unduck(self) -> None:
-    #     self.vel_modifier = 1
-    #     self.img_set = STANDING_IMGS
 
     def move(self) -> None:
         if self.ducking:
@@ -61,22 +49,29 @@ class Dinosaur:
             vel_modifier = 1
             self.img_set = self.STANDING_IMGS
 
-        self.tick_count += 1
+        self.vel += self.GRAVITY*vel_modifier
 
-        collision_floor = WIN_HEIGHT - BASE_IMG.get_height()/2 - self.img_set[0].get_height()
+        # NOTE: if any bugs arise, make this variable again dependent on the
+        # size of the sprite currently used.
+        collision_floor = 200
 
-        if self.y < collision_floor:
-            displacement = 0
-        else:
-            displacement = self.vel*self.tick_count*self.vel_modifier + 1.5*self.tick_count**2
+        if self.y + 1 >= collision_floor and self.jumping:
+            self.vel = -15
 
-            terminal_vel = 20
-            if displacement >= terminal_vel:
-                displacement = terminal_vel
-            if displacement < 0:
-                displacment -= 2
+        # makes sure the dinosaur is exactly lined with the ground
+        if self.y + self.vel >= collision_floor:
+            while not (self.y + math.copysign(1, self.vel) >= collision_floor):
+                self.y += math.copysign(1, self.vel)
+            self.vel = 0
 
-        self.y = self.y + displacement
+        self.y += self.vel
+        self.jumping = False
+
+        # makes sure the dinosaur does not go under the ground
+        if self.y > collision_floor:
+            while not(self.y - 1 <= collision_floor):
+                self.y -= 1
+            self.y += 1
 
     def draw(self, win) -> None:
         self.img_count += 1
@@ -89,7 +84,10 @@ class Dinosaur:
             self.img = self.img_set[0]
             self.img_count = 0
 
-        win.blit(self.img, (self.x, self.y))
+        if self.img_set == self.STANDING_IMGS:
+            win.blit(self.img, (self.x, self.y))
+        else:
+            win.blit(self.img, (self.x, self.y+33))
 
     def get_mask(self):
         return pygame.mask.from_surface(self.img)
@@ -132,8 +130,8 @@ class Bird:
         self.default_offset = WIN_HEIGHT - BASE_IMG.get_height()
         self.height = BIRD_IMGS[0].get_height()
         self.y = random.choice([self.default_offset - self.height,
-                                self.default_offset - self.height*2,
-                                self.default_offset - self.height*3])
+                                self.default_offset - self.height*1.5,
+                                self.default_offset - self.height*2])
 
         self.img_count = 0
         self.img = self.IMGS[self.img_count]
@@ -194,7 +192,7 @@ def draw_window(win, dino, base, obstacles) -> None:
     pygame.display.update()
 
 def main() -> None:
-    dino = Dinosaur(11, 150)
+    dino = Dinosaur(11, 10)
     base = Base(WIN_HEIGHT - BASE_IMG.get_height())
     obstacles = [Cactus(1200)]
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), vsync=1)
@@ -202,9 +200,14 @@ def main() -> None:
 
     run = True
     while run:
-        print(obstacles)
         clock.tick(60)
         for event in pygame.event.get():
+            # debug controls
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    dino.jumping = True
+                if event.key == pygame.K_DOWN:
+                    dino.ducking = True
             if event.type == pygame.QUIT:
                 run = False
                 pygame.quit()
