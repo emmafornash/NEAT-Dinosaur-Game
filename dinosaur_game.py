@@ -127,11 +127,11 @@ class Bird:
 
     def __init__(self, x) -> None:
         self.x = x
-        self.default_offset = WIN_HEIGHT - BASE_IMG.get_height()
+        default_offset = WIN_HEIGHT - BASE_IMG.get_height()
         self.height = BIRD_IMGS[0].get_height()
-        self.y = random.choice([self.default_offset - self.height,
-                                self.default_offset - self.height*1.5,
-                                self.default_offset - self.height*2])
+        self.y = random.choice([default_offset - self.height,
+                                default_offset - self.height*1.66,
+                                default_offset - self.height*2.33])
 
         self.img_count = 0
         self.img = self.IMGS[self.img_count]
@@ -154,7 +154,6 @@ class Bird:
             self.img_count = 0
 
         win.blit(self.img, (self.x, self.y))
-
 
 class Base:
     VEL = 7
@@ -180,8 +179,33 @@ class Base:
         win.blit(self.IMG, (self.x1, self.y))
         win.blit(self.IMG, (self.x2, self.y))
 
-def draw_window(win, dino, base, obstacles) -> None:
+class Cloud:
+    VEL = 6 + random.randrange(-4, 4)
+    IMG = CLOUD_IMG
+
+    def __init__(self, x) -> None:
+        self.x = x
+        default_offset = WIN_HEIGHT - 100
+        self.height = CLOUD_IMG.get_height()
+        self.y = random.choice([default_offset - self.height,
+                                default_offset - self.height*2,
+                                default_offset - self.height*3,
+                                default_offset - self.height*4])
+
+        self.send_next = False
+
+    def move(self) -> None:
+        self.x -= self.VEL
+
+    def draw(self, win) -> None:
+        win.blit(self.IMG, (self.x, self.y))
+
+def draw_window(win, dino, base, obstacles, clouds) -> None:
     win.fill((0,0,0))
+
+    for c in clouds:
+        c.draw(win)
+
     base.draw(win)
 
     for o in obstacles:
@@ -195,6 +219,7 @@ def main() -> None:
     dino = Dinosaur(11, 10)
     base = Base(WIN_HEIGHT - BASE_IMG.get_height())
     obstacles = [Cactus(1200)]
+    clouds = [Cloud(1300)]
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), vsync=1)
     clock = pygame.time.Clock()
 
@@ -203,11 +228,11 @@ def main() -> None:
         clock.tick(60)
         for event in pygame.event.get():
             # debug controls
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    dino.jumping = True
-                if event.key == pygame.K_DOWN:
-                    dino.ducking = True
+            # if event.type == pygame.KEYDOWN:
+            #     if event.key == pygame.K_UP:
+            #         dino.jumping = True
+            #     if event.key == pygame.K_DOWN:
+            #         dino.ducking = True
             if event.type == pygame.QUIT:
                 run = False
                 pygame.quit()
@@ -227,14 +252,32 @@ def main() -> None:
             o.move()
 
         if add_ob:
-            # options = [Cactus(1200), SmallCactus(1200), Bird(1200)]
-            options = [Bird(1200)]
+            options = [Cactus(1200), SmallCactus(1200), Bird(1200)]
+            # options = [Bird(1200)]
             obstacles.append(random.choice(options))
 
         for r in rem:
             obstacles.remove(r)
 
+        add_cloud = False
+        cloud_rem = []
+        for c in clouds:
+            if c.x < WIN_WIDTH * random.uniform(0.33, 0.75) and not c.send_next:
+                c.send_next = True
+                add_cloud = True
+
+            if c.x < 0 - c.IMG.get_width():
+                cloud_rem.append(c)
+
+            c.move()
+
+        if add_cloud:
+            clouds.append(Cloud(1300))
+
+        for c in cloud_rem:
+            clouds.remove(c)
+
         base.move()
-        draw_window(win, dino, base, obstacles)
+        draw_window(win, dino, base, obstacles, clouds)
 
 main()
