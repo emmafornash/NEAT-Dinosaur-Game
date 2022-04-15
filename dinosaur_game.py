@@ -4,6 +4,9 @@ pygame.font.init()
 WIN_WIDTH = 1200
 WIN_HEIGHT = 300
 
+# this is a bad way to implement this
+GEN = 0
+
 DINOSAUR_STANDING_IMGS = [(pygame.image.load(os.path.join("imgs", "dinosaur", "standing", "dinosaur1.png"))),
                             (pygame.image.load(os.path.join("imgs", "dinosaur", "standing", "dinosaur2.png")))]
 DINOSAUR_DOWN_IMGS = [(pygame.image.load(os.path.join("imgs", "dinosaur", "down", "dinosaur_down1.png"))),
@@ -118,7 +121,9 @@ class Cactus:
         dino_mask = dino.get_mask()
         cactus_mask = pygame.mask.from_surface(self.img)
 
-        collision_point = dino_mask.overlap(cactus_mask, (0,0))
+        offset = (self.x - dino.x, self.height - round(dino.y))
+
+        collision_point = dino_mask.overlap(cactus_mask, offset)
 
         return collision_point
 
@@ -127,6 +132,7 @@ class SmallCactus(Cactus):
         self.x = x
         self.img = SMALL_CACTUS_IMGS[random.randrange(0, 3)]
         self.height = WIN_HEIGHT - self.img.get_height()
+        self.y = self.height
 
         self.send_next = False
         self.passed = False
@@ -173,7 +179,9 @@ class Bird:
         dino_mask = dino.get_mask()
         bird_mask = pygame.mask.from_surface(self.img)
 
-        collision_point = dino_mask.overlap(bird_mask, (0,0))
+        offset = (self.x - dino.x, self.height - round(dino.y))
+
+        collision_point = dino_mask.overlap(bird_mask, offset)
 
         return collision_point
 
@@ -222,7 +230,7 @@ class Cloud:
     def draw(self, win) -> None:
         win.blit(self.IMG, (self.x, self.y))
 
-def draw_window(win, dino, base, obstacles, clouds, score) -> None:
+def draw_window(win, dinos, base, obstacles, clouds, score, gen) -> None:
     win.fill((0,0,0))
 
     for c in clouds:
@@ -236,11 +244,18 @@ def draw_window(win, dino, base, obstacles, clouds, score) -> None:
     text = STAT_FONT.render("Score: " + str(score), 1, (255, 255, 255))
     win.blit(text, (WIN_WIDTH - 10 - text.get_width(), 10))
 
-    dino.draw(win)
+    text = STAT_FONT.render("Gen: " + str(gen), 1, (255, 255, 255))
+    win.blit(text, (10, 10))
+
+    for d in dinos:
+        d.draw(win)
 
     pygame.display.update()
 
 def main(genomes, config) -> None:
+    global GEN
+    GEN += 1
+
     nets = []
     ge = []
     dinos = []
@@ -248,7 +263,7 @@ def main(genomes, config) -> None:
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
-        dinos.append(Dinosaur(11, 10))
+        dinos.append(Dinosaur(11, 200))
         g.fitness = 0
         ge.append(g)
 
@@ -349,7 +364,7 @@ def main(genomes, config) -> None:
             clouds.remove(c)
 
         base.move()
-        draw_window(win, dino, base, obstacles, clouds, score)
+        draw_window(win, dinos, base, obstacles, clouds, score, GEN)
 
 def run(config_path):
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -360,7 +375,7 @@ def run(config_path):
     population.add_reporter(neat.StdOutReporter(True))
     population.add_reporter(neat.StatisticsReporter())
 
-    winner = population.run(main,50)
+    winner = population.run(main,100)
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
