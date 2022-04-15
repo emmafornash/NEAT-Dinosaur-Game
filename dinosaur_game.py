@@ -22,6 +22,7 @@ BASE_IMG = (pygame.image.load(os.path.join("imgs", "misc", "base.png")))
 class Dinosaur:
     STANDING_IMGS = DINOSAUR_STANDING_IMGS
     DOWN_IMGS = DINOSAUR_DOWN_IMGS
+    ANIMATION_TIME = 10
 
     def __init__(self, x, y) -> None:
         self.x = x
@@ -31,18 +32,18 @@ class Dinosaur:
         self.vel = 0
         self.height = self.y
 
-        self.img_set = STANDING_IMGS
+        self.img_set = DINOSAUR_STANDING_IMGS
         self.img_count = 0
         self.img = self.img_set[self.img_count]
 
-        self.vel_modifier = 1
+        self.ducking = False
 
     def jump(self) -> None:
         self.vel = -10.5
         self.tick_count = 0
         self.height = self.y
 
-    # these seem inefficient. just pass a boolean to the move function
+    # NOTE: these seem inefficient. just pass a boolean to the move function
     # def duck(self) -> None:
     #     self.vel_modifier = 2
     #     self.img_set = DOWN_IMGS
@@ -51,9 +52,51 @@ class Dinosaur:
     #     self.vel_modifier = 1
     #     self.img_set = STANDING_IMGS
 
+    def move(self) -> None:
+        if self.ducking:
+            vel_modifier = 2
+            self.img_set = self.DOWN_IMGS
+            self.ducking = False
+        else:
+            vel_modifier = 1
+            self.img_set = self.STANDING_IMGS
+
+        self.tick_count += 1
+
+        collision_floor = WIN_HEIGHT - BASE_IMG.get_height()/2 - self.img_set[0].get_height()
+
+        if self.y < collision_floor:
+            displacement = 0
+        else:
+            displacement = self.vel*self.tick_count*self.vel_modifier + 1.5*self.tick_count**2
+
+            terminal_vel = 20
+            if displacement >= terminal_vel:
+                displacement = terminal_vel
+            if displacement < 0:
+                displacment -= 2
+
+        self.y = self.y + displacement
+
+    def draw(self, win) -> None:
+        self.img_count += 1
+
+        if self.img_count < self.ANIMATION_TIME:
+            self.img = self.img_set[0]
+        elif self.img_count < self.ANIMATION_TIME*2:
+            self.img = self.img_set[1]
+        else:
+            self.img = self.img_set[0]
+            self.img_count = 0
+
+        win.blit(self.img, (self.x, self.y))
+
+    def get_mask(self):
+        return pygame.mask.from_surface(self.img)
+
 
 class Cactus:
-    # make velocity global in some way. DO NOT USE GLOBAL
+    # TODO: make velocity global in some way. DO NOT USE GLOBAL
     VEL = 7
 
     def __init__(self, x) -> None:
@@ -79,8 +122,8 @@ class SmallCactus(Cactus):
 
 class Bird:
     IMGS = BIRD_IMGS
-    # maybe set this to a custom distribution, i.e. the mean is still 7, but
-    # the range can so significantly more negative
+    # NOTE: maybe set this to a custom distribution, i.e. the mean is still 7,
+    # but the range can so significantly more negative
     VEL = 7 + random.randrange(-2, 2)
     ANIMATION_TIME = 10
 
@@ -103,7 +146,7 @@ class Bird:
     def draw(self, win) -> None:
         self.img_count += 1
 
-        # this may be inefficient, come back later
+        # NOTE: this may be inefficient, come back later
         if self.img_count < self.ANIMATION_TIME:
             self.img = self.IMGS[0]
         elif self.img_count < self.ANIMATION_TIME*2:
@@ -139,16 +182,19 @@ class Base:
         win.blit(self.IMG, (self.x1, self.y))
         win.blit(self.IMG, (self.x2, self.y))
 
-def draw_window(win, base, obstacles) -> None:
+def draw_window(win, dino, base, obstacles) -> None:
     win.fill((0,0,0))
     base.draw(win)
 
     for o in obstacles:
         o.draw(win)
 
+    dino.draw(win)
+
     pygame.display.update()
 
 def main() -> None:
+    dino = Dinosaur(11, 150)
     base = Base(WIN_HEIGHT - BASE_IMG.get_height())
     obstacles = [Cactus(1200)]
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), vsync=1)
@@ -164,6 +210,7 @@ def main() -> None:
                 pygame.quit()
                 quit()
 
+        dino.move()
         add_ob = False
         rem = []
         for o in obstacles:
@@ -185,6 +232,6 @@ def main() -> None:
             obstacles.remove(r)
 
         base.move()
-        draw_window(win, base, obstacles)
+        draw_window(win, dino, base, obstacles)
 
 main()
