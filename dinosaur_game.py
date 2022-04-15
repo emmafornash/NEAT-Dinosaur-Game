@@ -23,9 +23,34 @@ class Dinosaur:
     STANDING_IMGS = DINOSAUR_STANDING_IMGS
     DOWN_IMGS = DINOSAUR_DOWN_IMGS
 
-    def __init__(self, x, y):
+    def __init__(self, x, y) -> None:
         self.x = x
         self.y = y
+
+        self.tick_count = 0
+        self.vel = 0
+        self.height = self.y
+
+        self.img_set = STANDING_IMGS
+        self.img_count = 0
+        self.img = self.img_set[self.img_count]
+
+        self.vel_modifier = 1
+
+    def jump(self) -> None:
+        self.vel = -10.5
+        self.tick_count = 0
+        self.height = self.y
+
+    # these seem inefficient. just pass a boolean to the move function
+    # def duck(self) -> None:
+    #     self.vel_modifier = 2
+    #     self.img_set = DOWN_IMGS
+    #
+    # def unduck(self) -> None:
+    #     self.vel_modifier = 1
+    #     self.img_set = STANDING_IMGS
+
 
 class Cactus:
     # make velocity global in some way. DO NOT USE GLOBAL
@@ -54,14 +79,18 @@ class SmallCactus(Cactus):
 
 class Bird:
     IMGS = BIRD_IMGS
+    # maybe set this to a custom distribution, i.e. the mean is still 7, but
+    # the range can so significantly more negative
     VEL = 7 + random.randrange(-2, 2)
     ANIMATION_TIME = 10
 
     def __init__(self, x) -> None:
         self.x = x
-        self.y = random.choice([WIN_HEIGHT - BASE_IMG.get_height() - BIRD_IMGS[0].get_height(),
-                                WIN_HEIGHT - BASE_IMG.get_height() - BIRD_IMGS[0].get_height()*2,
-                                WIN_HEIGHT - BASE_IMG.get_height() - BIRD_IMGS[0].get_height()*3])
+        self.default_offset = WIN_HEIGHT - BASE_IMG.get_height()
+        self.height = BIRD_IMGS[0].get_height()
+        self.y = random.choice([self.default_offset - self.height,
+                                self.default_offset - self.height*2,
+                                self.default_offset - self.height*3])
 
         self.img_count = 0
         self.img = self.IMGS[self.img_count]
@@ -74,12 +103,13 @@ class Bird:
     def draw(self, win) -> None:
         self.img_count += 1
 
-        # this is inefficient, come back later
+        # this may be inefficient, come back later
         if self.img_count < self.ANIMATION_TIME:
             self.img = self.IMGS[0]
         elif self.img_count < self.ANIMATION_TIME*2:
             self.img = self.IMGS[1]
         else:
+            self.img = self.IMGS[0]
             self.img_count = 0
 
         win.blit(self.img, (self.x, self.y))
@@ -147,8 +177,8 @@ def main() -> None:
             o.move()
 
         if add_ob:
-            options = [Cactus(1200), SmallCactus(1200), Bird(1200)]
-            # options = [Bird(1200)]
+            # options = [Cactus(1200), SmallCactus(1200), Bird(1200)]
+            options = [Bird(1200)]
             obstacles.append(random.choice(options))
 
         for r in rem:
