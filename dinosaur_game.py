@@ -102,6 +102,7 @@ class Cactus:
         self.img = BIG_CACTUS_IMGS[random.randrange(0, 3)]
         self.height = WIN_HEIGHT - self.img.get_height()
 
+        self.send_next = False
         self.passed = False
 
     def move(self) -> None:
@@ -116,6 +117,7 @@ class SmallCactus(Cactus):
         self.img = SMALL_CACTUS_IMGS[random.randrange(0, 3)]
         self.height = WIN_HEIGHT - self.img.get_height()
 
+        self.send_next = False
         self.passed = False
 
 class Bird:
@@ -136,6 +138,7 @@ class Bird:
         self.img_count = 0
         self.img = self.IMGS[self.img_count]
 
+        self.send_next = False
         self.passed = False
 
     def move(self) -> None:
@@ -242,8 +245,8 @@ def main() -> None:
         add_ob = False
         rem = []
         for o in obstacles:
-            if o.x < WIN_WIDTH / 2 and not o.passed:
-                o.passed = True
+            if o.x < WIN_WIDTH / 2 and not o.send_next:
+                o.send_next = True
                 add_ob = True
 
             if o.x < 0 - o.img.get_width():
