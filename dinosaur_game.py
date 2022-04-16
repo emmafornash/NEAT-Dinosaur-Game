@@ -179,7 +179,7 @@ class Bird:
         dino_mask = dino.get_mask()
         bird_mask = pygame.mask.from_surface(self.img)
 
-        offset = (self.x - dino.x, self.height - round(dino.y))
+        offset = (self.x - dino.x, self.y - round(dino.y))
 
         collision_point = dino_mask.overlap(bird_mask, offset)
 
@@ -230,7 +230,7 @@ class Cloud:
     def draw(self, win) -> None:
         win.blit(self.IMG, (self.x, self.y))
 
-def draw_window(win, dinos, base, obstacles, clouds, score, gen) -> None:
+def draw_window(win, dinos, base, obstacles, clouds, score, specimen, gen) -> None:
     win.fill((0,0,0))
 
     for c in clouds:
@@ -246,6 +246,9 @@ def draw_window(win, dinos, base, obstacles, clouds, score, gen) -> None:
 
     text = STAT_FONT.render("Gen: " + str(gen), 1, (255, 255, 255))
     win.blit(text, (10, 10))
+
+    text = STAT_FONT.render("Specimen: " + str(specimen), 1, (255, 255, 255))
+    win.blit(text, (10, 50))
 
     for d in dinos:
         d.draw(win)
@@ -292,15 +295,17 @@ def main(genomes, config) -> None:
 
         obs_ind = 0
         if len(dinos) > 0:
-            if len(obstacles) > 1 and dinos[0].x > obstacles[0].x:
+            if len(obstacles) > 1 and dinos[0].x > obstacles[0].x + obstacles[0].img.get_width():
                 obs_ind = 1
         else:
             run = False
             break
 
         for x, dino in enumerate(dinos):
-            ge[x].fitness += 0.1
-            output = nets[x].activate((dino.y, abs(dino.x - obstacles[obs_ind].x), abs(dino.y - obstacles[obs_ind].y)))
+            ge[x].fitness += 0.01
+            output = nets[x].activate((dino.y, abs(dino.x - obstacles[obs_ind].x),
+                                        abs(dino.y - obstacles[obs_ind].y),
+                                        obstacles[obs_ind].img.get_width()))
 
             if output[0] > 0.5:
                 dino.jumping = True
@@ -315,7 +320,7 @@ def main(genomes, config) -> None:
         for o in obstacles:
             for x, dino in enumerate(dinos):
                 if o.collide(dino):
-                    ge[x].fitness -= 3
+                    ge[x].fitness -= 7
                     dinos.pop(x)
                     nets.pop(x)
                     ge.pop(x)
@@ -334,7 +339,7 @@ def main(genomes, config) -> None:
             o.move()
 
         if add_ob:
-            options = [Cactus(1200), SmallCactus(1200), Bird(1200)]
+            options = [Cactus(1200), SmallCactus(1200), Bird(1200), Bird(1200)]
             # options = [Bird(1200)]
             obstacles.append(random.choice(options))
 
@@ -343,7 +348,7 @@ def main(genomes, config) -> None:
 
         if give_score:
             for g in ge:
-                g.fitness += 5
+                g.fitness += 10
 
         add_cloud = False
         cloud_rem = []
@@ -363,8 +368,9 @@ def main(genomes, config) -> None:
         for c in cloud_rem:
             clouds.remove(c)
 
+        specimen = len(dinos)
         base.move()
-        draw_window(win, dinos, base, obstacles, clouds, score, GEN)
+        draw_window(win, dinos, base, obstacles, clouds, score, specimen, GEN)
 
 def run(config_path):
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -375,7 +381,7 @@ def run(config_path):
     population.add_reporter(neat.StdOutReporter(True))
     population.add_reporter(neat.StatisticsReporter())
 
-    winner = population.run(main,100)
+    winner = population.run(main,200)
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
