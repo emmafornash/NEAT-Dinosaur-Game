@@ -1,4 +1,5 @@
 import pygame, neat, time, os, random, math
+from time import perf_counter
 pygame.font.init()
 
 WIN_WIDTH = 1200
@@ -39,6 +40,7 @@ class Dinosaur:
         self.height = self.y
 
         self.img_set = DINOSAUR_STANDING_IMGS
+        self.tick_count = 0
         self.img_count = 0
         self.img = self.img_set[self.img_count]
 
@@ -58,7 +60,7 @@ class Dinosaur:
 
         # NOTE: if any bugs arise, make this variable again dependent on the
         # size of the sprite currently used.
-        collision_floor = 200
+        collision_floor = 201
 
         if self.y + 1 >= collision_floor and self.jumping:
             self.vel = -15
@@ -73,21 +75,18 @@ class Dinosaur:
         self.jumping = False
 
         # makes sure the dinosaur does not go under the ground
-        if self.y > collision_floor:
-            while not(self.y - 1 <= collision_floor):
-                self.y -= 1
-            self.y += 1
+        # if self.y > collision_floor:
+        #     while not(self.y - 1 <= collision_floor):
+        #         self.y -= 1
+        #     self.y += 1
 
     def draw(self, win) -> None:
-        self.img_count += 1
+        self.tick_count += 1
 
-        if self.img_count < self.ANIMATION_TIME:
-            self.img = self.img_set[0]
-        elif self.img_count < self.ANIMATION_TIME*2:
-            self.img = self.img_set[1]
-        else:
-            self.img = self.img_set[0]
-            self.img_count = 0
+        if self.tick_count >= self.ANIMATION_TIME:
+            self.img_count = (self.img_count + 1) % len(self.img_set)
+            self.img = self.img_set[self.img_count]
+            self.tick_count = 0
 
         if self.img_set == self.STANDING_IMGS:
             win.blit(self.img, (self.x, self.y))
@@ -99,9 +98,6 @@ class Dinosaur:
 
 
 class Cactus:
-    # TODO: make velocity global in some way. DO NOT USE GLOBAL
-    VEL = 8
-
     def __init__(self, x) -> None:
         self.x = x
         self.img = BIG_CACTUS_IMGS[random.randrange(0, 3)]
@@ -111,8 +107,8 @@ class Cactus:
         self.send_next = False
         self.passed = False
 
-    def move(self) -> None:
-        self.x -= self.VEL
+    def move(self, velocity) -> None:
+        self.x -= velocity
 
     def draw(self, win) -> None:
         win.blit(self.img, (self.x, self.height))
@@ -138,10 +134,8 @@ class SmallCactus(Cactus):
         self.passed = False
 
 class Bird:
+    VEL_OFFSET = 1 + random.randrange(-2, 2)
     IMGS = BIRD_IMGS
-    # NOTE: maybe set this to a custom distribution, i.e. the mean is still 7,
-    # but the range can so significantly more negative
-    VEL = 8 + random.randrange(-2, 2)
     ANIMATION_TIME = 10
 
     def __init__(self, x) -> None:
@@ -152,26 +146,24 @@ class Bird:
                                 default_offset - self.height*1.66,
                                 default_offset - self.height*2.33])
 
+        self.tick_count = 0
         self.img_count = 0
         self.img = self.IMGS[self.img_count]
 
         self.send_next = False
         self.passed = False
 
-    def move(self) -> None:
-        self.x -= self.VEL
+    def move(self, velocity) -> None:
+        used_velocity = velocity + self.VEL_OFFSET
+        self.x -= used_velocity
 
     def draw(self, win) -> None:
-        self.img_count += 1
+        self.tick_count += 1
 
-        # NOTE: this may be inefficient, come back later
-        if self.img_count < self.ANIMATION_TIME:
-            self.img = self.IMGS[0]
-        elif self.img_count < self.ANIMATION_TIME*2:
-            self.img = self.IMGS[1]
-        else:
-            self.img = self.IMGS[0]
-            self.img_count = 0
+        if self.tick_count >= self.ANIMATION_TIME:
+            self.img_count = (self.img_count + 1) % len(self.IMGS)
+            self.img = self.IMGS[self.img_count]
+            self.tick_count = 0
 
         win.blit(self.img, (self.x, self.y))
 
@@ -186,7 +178,6 @@ class Bird:
         return collision_point
 
 class Base:
-    VEL = 8
     WIDTH = BASE_IMG.get_width()
     IMG = BASE_IMG
 
@@ -195,9 +186,9 @@ class Base:
         self.x1 = 0
         self.x2 = self.WIDTH
 
-    def move(self) -> None:
-        self.x1 -= self.VEL
-        self.x2 -= self.VEL
+    def move(self, velocity) -> None:
+        self.x1 -= velocity
+        self.x2 -= velocity
 
         if self.x1 + self.WIDTH < 0:
             self.x1 = self.x2 + self.WIDTH
@@ -210,7 +201,7 @@ class Base:
         win.blit(self.IMG, (self.x2, self.y))
 
 class Cloud:
-    VEL = 6 + random.randrange(-4, 4)
+    VEL_OFFSET = 1 + random.randrange(-4, 4)
     IMG = CLOUD_IMG
 
     def __init__(self, x) -> None:
@@ -224,8 +215,9 @@ class Cloud:
 
         self.send_next = False
 
-    def move(self) -> None:
-        self.x -= self.VEL
+    def move(self, velocity) -> None:
+        used_velocity = velocity - self.VEL_OFFSET
+        self.x -= used_velocity
 
     def draw(self, win) -> None:
         win.blit(self.IMG, (self.x, self.y))
@@ -276,6 +268,12 @@ def main(genomes, config) -> None:
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT), vsync=1)
     clock = pygame.time.Clock()
 
+    universal_velocity = 7
+    # NOTE: no idea if a velocity this fast is even possible to survive in
+    max_universal_velocity = 21
+    time_until_max = 120
+    per_frame_increase = (max_universal_velocity - universal_velocity) / (60*60*time_until_max)
+
     score = 0
     run = True
     while run:
@@ -292,6 +290,9 @@ def main(genomes, config) -> None:
                 run = False
                 pygame.quit()
                 quit()
+
+        if universal_velocity < max_universal_velocity:
+            universal_velocity += per_frame_increase
 
         obs_ind = 0
         if len(dinos) > 0:
@@ -336,7 +337,7 @@ def main(genomes, config) -> None:
             if o.x < 0 - o.img.get_width():
                 rem.append(o)
 
-            o.move()
+            o.move(universal_velocity)
 
         if add_ob:
             options = [Cactus(1200), SmallCactus(1200), Bird(1200), Bird(1200)]
@@ -360,7 +361,7 @@ def main(genomes, config) -> None:
             if c.x < 0 - c.IMG.get_width():
                 cloud_rem.append(c)
 
-            c.move()
+            c.move(universal_velocity)
 
         if add_cloud:
             clouds.append(Cloud(1300))
@@ -369,7 +370,7 @@ def main(genomes, config) -> None:
             clouds.remove(c)
 
         specimen = len(dinos)
-        base.move()
+        base.move(universal_velocity)
         draw_window(win, dinos, base, obstacles, clouds, score, specimen, GEN)
 
 def run(config_path):
