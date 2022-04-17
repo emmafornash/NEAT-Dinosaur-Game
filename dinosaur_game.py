@@ -144,6 +144,7 @@ class Bird:
         self.height = BIRD_IMGS[0].get_height()
         self.y = random.choice([default_offset - self.height,
                                 default_offset - self.height*1.66,
+                                default_offset - self.height*2.33,
                                 default_offset - self.height*2.33])
 
         self.tick_count = 0
@@ -169,7 +170,9 @@ class Bird:
 
     def collide(self, dino) -> bool:
         dino_mask = dino.get_mask()
-        bird_mask = pygame.mask.from_surface(self.img)
+        # specifies the downward-wing image to compensate for varience
+        # in sprite masks
+        bird_mask = pygame.mask.from_surface(self.IMGS[0])
 
         offset = (self.x - dino.x, self.y - round(dino.y))
 
@@ -271,7 +274,8 @@ def main(genomes, config) -> None:
     universal_velocity = 7
     # NOTE: no idea if a velocity this fast is even possible to survive in
     max_universal_velocity = 21
-    time_until_max = 120
+    # time in minutes
+    time_until_max = 1
     per_frame_increase = (max_universal_velocity - universal_velocity) / (60*60*time_until_max)
 
     score = 0
@@ -303,7 +307,7 @@ def main(genomes, config) -> None:
             break
 
         for x, dino in enumerate(dinos):
-            ge[x].fitness += 0.01
+            ge[x].fitness += 0.05
             output = nets[x].activate((dino.y, abs(dino.x - obstacles[obs_ind].x),
                                         abs(dino.y - obstacles[obs_ind].y),
                                         obstacles[obs_ind].img.get_width()))
@@ -321,7 +325,7 @@ def main(genomes, config) -> None:
         for o in obstacles:
             for x, dino in enumerate(dinos):
                 if o.collide(dino):
-                    ge[x].fitness -= 7
+                    ge[x].fitness -= 10
                     dinos.pop(x)
                     nets.pop(x)
                     ge.pop(x)
@@ -382,7 +386,7 @@ def run(config_path):
     population.add_reporter(neat.StdOutReporter(True))
     population.add_reporter(neat.StatisticsReporter())
 
-    winner = population.run(main,200)
+    winner = population.run(main, 500)
 
 if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
