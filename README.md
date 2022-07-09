@@ -6,7 +6,7 @@ A NEAT-based machine learning program for a custom implementation of the Chrome 
 
 ## Overview
 
-Created as part of learning about the NEAT algorithm.
+An endless runner played by thousands of bored students with access to a laptop, the Google Chrome Dinosaur game is one of the most beloved in wasting time and trying to stay awake during boring lectures. Although many played, significantly less were any good at it, oftentimes dying within the first 30 seconds. In spite of their lack of ability, many pushed onward to find the limits of these antiquated reptiles and many have failed. However, now we have something different. This project, through the power of Neuroevolution, shall finally help us find the answer to the long-awaited question: just how far can these Dinosaurs run?
 
 ## How to Use
 
@@ -17,7 +17,10 @@ Created as part of learning about the NEAT algorithm.
 
 ### Instructions
 
-After pip installing the dependencies, download the project and run the `dinosaur_game.py` file.
+1. Clone this project
+2. Install pygame and NEAT - `pip install pygame neat-python`
+3. Run `dinosaur_game.py`
+4. Sit back and enjoy
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
