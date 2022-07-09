@@ -1,4 +1,4 @@
-# NEAT-Dinosaur-Game
+# NEAT Dinosaur Game
 
 A NEAT-based machine learning program for a custom implementation of the Chrome Dinosaur Game.
 
