@@ -18,7 +18,7 @@ An endless runner played by thousands of bored students with access to a laptop,
 ### Instructions
 
 1. Clone this project
-2. Install pygame and NEAT - `pip install pygame neat-python`
+2. Install pygame and NEAT - `pip install pygame neat-python` or `pip install -r requirements.txt`
 3. Run `dinosaur_game.py`
 4. Sit back and enjoy
 
